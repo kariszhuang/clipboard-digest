@@ -34,8 +34,7 @@ def log_to_db(text: str, timestamp: str) -> None:
 
     # Insert the new entry
     c.execute(
-        "INSERT INTO clipboard (timestamp, content) VALUES (?, ?)",
-        (timestamp, text)
+        "INSERT INTO clipboard (timestamp, content) VALUES (?, ?)", (timestamp, text)
     )
 
     conn.commit()
@@ -45,9 +44,8 @@ def log_to_db(text: str, timestamp: str) -> None:
 if __name__ == "__main__":
     # Allow standalone usage: python log_clipboard.py "text" [timestamp]
     import sys
+
     ts: str = (
-        sys.argv[2]
-        if len(sys.argv) > 2
-        else datetime.now(timezone.utc).isoformat()
+        sys.argv[2] if len(sys.argv) > 2 else datetime.now(timezone.utc).isoformat()
     )
     log_to_db(text=sys.argv[1], timestamp=ts)
