@@ -3,8 +3,10 @@ import os
 from datetime import timezone, datetime
 from pathlib import Path
 from dotenv import load_dotenv
+from config.env_validate import validate_env
 
 # Load configuration from .env
+validate_env()
 load_dotenv()
 DB_PATH: str = os.getenv("DB_PATH", "data/clipboard.db")
 

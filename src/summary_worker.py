@@ -4,10 +4,13 @@ import sqlite3
 from dotenv import load_dotenv
 from openai import OpenAI
 from concurrent.futures import ThreadPoolExecutor
+from config.env_validate import validate_env
 
 
 # Load configuration from .env
+validate_env()
 load_dotenv()
+
 DB_PATH: str = os.getenv("DB_PATH", "data/clipboard.db")
 SUMMARY_TRIGGER_LEN: int = int(os.getenv("SUMMARY_TRIGGER_LEN", "200"))
 POLL_INTERVAL: int = int(os.getenv("POLL_INTERVAL", "20"))
@@ -80,9 +83,7 @@ def poll_and_summarize() -> None:
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    executor: ThreadPoolExecutor | None = ThreadPoolExecutor(
-        max_workers=MAX_SUMMARY_THREADS
-    )
+    executor: ThreadPoolExecutor = ThreadPoolExecutor(max_workers=MAX_SUMMARY_THREADS)
 
     try:
         # Recover stuck entries

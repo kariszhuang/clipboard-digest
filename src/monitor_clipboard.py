@@ -6,8 +6,10 @@ import sqlite3
 from dotenv import load_dotenv
 from datetime import datetime, timezone
 from src.log_clipboard import log_to_db
+from config.env_validate import validate_env
 
 # Load configuration from .env
+validate_env()
 load_dotenv()
 REFRESH_INTERVAL: float = float(os.getenv("REFRESH_INTERVAL", "2"))
 DB_PATH: str = os.getenv("DB_PATH", "data/clipboard.db")
