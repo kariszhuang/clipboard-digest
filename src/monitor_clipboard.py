@@ -55,8 +55,8 @@ while True:
             # debugging output (first 80 chars)
             print(f"Copied: {clip[:80]}{'...' if len(clip) > 80 else ''}")
 
-            # UTC timestamp in ISO format
-            ts: str = datetime.now(timezone.utc).isoformat()
+            # UTC timestamp in ISO format (to second). e.g. 2025-05-08T20:11:29
+            ts: str = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
 
             # Log the full original clipboard content to the database
             log_to_db(text=clip, timestamp=ts)

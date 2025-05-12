@@ -29,7 +29,9 @@ def log_to_db(text: str, timestamp: str) -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp TEXT NOT NULL,
             content TEXT NOT NULL,
-            summary TEXT
+            summary TEXT,
+            type TEXT,
+            "group" INTEGER CHECK ("group" > 0)
         )
         """
     )
