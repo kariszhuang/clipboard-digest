@@ -56,14 +56,19 @@ def extract_json(text: str, tag: str) -> str:
     Extracts the value of a given JSON tag from LLM-output text, handling cases where the JSON
     block may be truncated by maximum length (interrupted output).
     - Supports optional ```json``` fences.
+    - Prioritizes complete fenced JSON, then strips incomplete fences.
     - Uses regex to capture complete or truncated string values, then balances braces if needed.
     - Returns the extracted value or an empty string.
     """
-    # strip ```json fence if present
-    fence = re.search(r"```json\s*(\{.*)", text, re.DOTALL)
-    raw = fence.group(1) if fence else text
+    # 0. Extract JSON block from complete fences if present
+    fence_full = re.search(r"```json\s+(\{.*?\})\s*```", text, re.DOTALL)
+    if fence_full:
+        raw = fence_full.group(1)
+    else:
+        fence_open = re.search(r"```json\s*(\{.*)", text, re.DOTALL)
+        raw = fence_open.group(1) if fence_open else text
 
-    # 1. complete or truncated string patterns
+    # 1. Complete or truncated string patterns
     m_full = re.search(rf'"{tag}"\s*:\s*"((?:\\.|[^"])*)"', raw)
     if m_full:
         return m_full.group(1)
