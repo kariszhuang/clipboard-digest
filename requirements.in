@@ -1,4 +1,6 @@
 openai
+numpy
 pydantic
 pyperclip
 python-dotenv
+pytz

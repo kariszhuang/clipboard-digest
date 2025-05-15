@@ -28,6 +28,8 @@ idna==3.10
     #   httpx
 jiter==0.9.0
     # via openai
+numpy==2.2.5
+    # via -r requirements.in
 openai==1.76.0
     # via -r requirements.in
 pydantic==2.11.3
@@ -39,6 +41,8 @@ pydantic-core==2.33.1
 pyperclip==1.9.0
     # via -r requirements.in
 python-dotenv==1.1.0
+    # via -r requirements.in
+pytz==2025.2
     # via -r requirements.in
 sniffio==1.3.1
     # via
