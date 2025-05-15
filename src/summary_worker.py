@@ -57,6 +57,7 @@ except Exception as e:
     client = None
 
 
+#  TODO: Add Fail counts and stop when too many errors occur
 def summarize_and_store(clip_id: int, content: str) -> None:
     """Fetch a summary from AI and write it back to the DB."""
     try:
