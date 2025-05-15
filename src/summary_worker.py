@@ -60,6 +60,9 @@ except Exception as e:
 #  TODO: Add Fail counts and stop when too many errors occur
 def summarize_and_store(clip_id: int, content: str) -> None:
     """Fetch a summary from AI and write it back to the DB."""
+    if client is None:
+        print("OpenAI client not initialized. Skipping LLM insights.")
+        return
     try:
         response = client.chat.completions.create(
             model=SUMMARY_MODEL,

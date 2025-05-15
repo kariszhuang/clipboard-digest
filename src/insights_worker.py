@@ -5,7 +5,7 @@ import os
 import re
 from collections import defaultdict
 from openai import OpenAI
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Union
 from config.env_validate import validate_env
 import numpy as np
 from dotenv import load_dotenv
@@ -59,45 +59,46 @@ Pay close attention to the sequential IDs provided for each entry and use them a
 INSIGHTS_LLM_SCHEMA_DEFINITION: Dict[str, Dict[str, Any]] = {
     "tasks": {
         "type": "list",
-        "schema": [  # List of example items (here, one example of a task object string)
+        "schema": [
             """{
-    "name": "Task name",
-    "description": "Detailed description of the task",
-    "ids": "[1, 5-9, 12]"      // Use sequential ID ranges from this log. Must be complete and accurate.
-            }"""
+    "name": "Task name",  // Be specific and observative about key activities
+    "description": "Detailed description of what was done and why it matters",
+    "ids": "1, 5-9, 12"  // Use comma-separated values or hyphenated ranges (e.g., '5-9'); must match recorded entries precisely
+}"""
         ],
-        "comment": "// Add all essential tasks from the day",
+        "comment": "// Add all essential tasks from the day, grouped meaningfully by activity or intention",
     },
     "timeline": {
         "type": "list",
-        "schema": [  # List of example items
+        "schema": [
             """{
-      "period": "HH:MM - HH:MM", // e.g., "09:00 - 10:30"
-      "description": "Detailed description of clipboard usage and activities during this time window"
-    }"""
+    "period": "HH:MM - HH:MM",  // 24-hour padded format, e.g., '09:00 - 10:30'
+    "description": "Detailed account of clipboard and activity flow in this time block"
+}"""
         ],
-        "comment": "// Cover all meaningful activity blocks throughout the day",
+        "comment": "// Include all meaningful activity blocks, ideally continuous without large unexplained gaps",
     },
     "keywords": {
         "type": "list",
-        "schema": [  # List of example items (strings)
+        "schema": [
             '"💻 Programming"',
             '"📝 Notes"',
             '"🔍 Research"',
         ],
-        "comment": "// 3 total max, each prefixed with an emoji",
+        "comment": "// Up to 3 total. Use emoji-prefixed, high-signal labels summarizing your day.",
     },
     "pattern": {
         "type": "str",
-        "schema": "Description of patterns in clipboard usage today",  # Placeholder/instruction
-        "comment": "// Describe patterns in clipboard usage in a friendly and insightful tone. Think out loud about the flow of activities.",
+        "schema": "Reflective summary of clipboard and activity patterns today",
+        "comment": "// Describe activity flow, switching behavior, focus bursts, or procrastination trends in a friendly and thoughtful tone.",
     },
     "recommendation": {
         "type": "str",
-        "schema": "Suggestions for improving workflow based on clipboard data",  # Placeholder/instruction
-        "comment": "// Offer specific, honest, and useful suggestions for improving my workflow based on observed clipboard behavior. Be constructive.",
+        "schema": "Concrete suggestions for better workflow tomorrow",
+        "comment": "// Be honest and constructive. Suggest specific improvements based on what worked or didn’t today.",
     },
 }
+
 
 try:
     client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_API_BASE_URL)
@@ -613,14 +614,14 @@ def get_llm_insights(
     """
     if openai_client is None:
         return '{"error": "OpenAI client not initialized. Check API key and base URL."}'
-    messages = [
-        {"role": "system", "content": system_prompt_text},
-        {"role": "user", "content": user_prompt_text},
-    ]
+
     try:
         response = openai_client.chat.completions.create(
             model=model_name,
-            messages=messages,
+            messages=[
+                {"role": "system", "content": system_prompt_text},
+                {"role": "user", "content": user_prompt_text},
+            ],
             temperature=temperature,
             max_tokens=max_tokens,
         )
@@ -631,6 +632,51 @@ def get_llm_insights(
     except Exception as e:
         print(f"Error calling OpenAI API: {e}")
         return f'{{"error": "API call failed", "details": "{str(e)}"}}'
+
+
+def get_original_db_ids_for_task(
+    task_sequential_ids: List[Union[int, str]], seq_to_db_id_map: Dict[int, List[int]]
+) -> List[int]:
+    """
+    Converts a list of sequential IDs and/or ID ranges from a task
+    into a flat list of unique, sorted original database IDs.
+
+    Parameters:
+    - task_sequential_ids: List of sequential IDs (e.g., [1, "5-9", 12])
+    - seq_to_db_id_map: Mapping from sequential ID to list of original DB IDs
+
+    Returns:
+    - A list of unique, sorted original database IDs.
+    """
+    original_db_ids_set: set = set()
+    for id_expr in task_sequential_ids:
+        if isinstance(id_expr, int):
+            if id_expr in seq_to_db_id_map:
+                original_db_ids_set.update(seq_to_db_id_map[id_expr])
+            else:
+                print(f"Warning: Sequential ID {id_expr} not found in map.")
+        elif isinstance(id_expr, str) and "-" in id_expr:
+            try:
+                start_str, end_str = id_expr.split("-", 1)
+                start_id = int(start_str)
+                end_id = int(end_str)
+                if start_id > end_id:
+                    print(f"Warning: Invalid range {id_expr}, start > end. Skipping.")
+                    continue
+                for seq_id_in_range in range(start_id, end_id + 1):
+                    if seq_id_in_range in seq_to_db_id_map:
+                        original_db_ids_set.update(seq_to_db_id_map[seq_id_in_range])
+                    else:
+                        print(
+                            f"Warning: Sequential ID {seq_id_in_range} from range {id_expr} not found in map."
+                        )
+            except ValueError:
+                print(
+                    f"Warning: Could not parse range expression '{id_expr}'. Skipping."
+                )
+        else:
+            print(f"Warning: Unrecognized ID expression '{id_expr}'. Skipping.")
+    return sorted(list(original_db_ids_set))
 
 
 def main():
@@ -652,7 +698,25 @@ def main():
     print(f"Using timezone: {LOCAL_TIMEZONE_STR}, DB: {DB_PATH}")
 
     local_tz_obj = pytz.timezone(LOCAL_TIMEZONE_STR)
-    conn, cursor = db_connect(DB_PATH)
+
+    # Ensure DB_PATH is absolute or correctly relative from script execution location
+    if not os.path.isabs(DB_PATH) and not os.path.exists(DB_PATH):
+        # Try to construct path relative to the script's directory if DB_PATH is like "data/clipboard.db"
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        potential_db_path = os.path.join(script_dir, DB_PATH)
+        if os.path.exists(potential_db_path):
+            current_db_path = potential_db_path
+            print(f"Relative DB_PATH found at: {current_db_path}")
+        else:
+            # Fallback to original DB_PATH if relative path doesn't exist either
+            current_db_path = DB_PATH
+            print(
+                f"Warning: DB_PATH '{DB_PATH}' might be incorrect or file not found. Trying original path."
+            )
+    else:
+        current_db_path = DB_PATH
+
+    conn, cursor = db_connect(current_db_path)
 
     try:
         raw_db_entries, now_utc = fetch_entries_from_db(cursor, hours=HOURS_TO_ANALYZE)
@@ -675,7 +739,8 @@ def main():
         master_sorted = build_master_list_for_final_sorting(
             typed_groups, dynamic_blocks
         )
-        _seq_map, prompt_typed, prompt_untyped = (
+        # Save the mapping from sequential IDs to database IDs
+        seq_to_db_ids_map, prompt_typed, prompt_untyped = (
             assign_sequential_ids_and_prepare_prompt_data(master_sorted)
         )
 
@@ -689,10 +754,6 @@ def main():
 
         print("\n--- Generated Prompt for LLM---")
         print(insights_user_prompt)
-        # For full prompt debugging:
-        # with open("generated_prompt_debug.md", "w", encoding="utf-8") as f:
-        #     f.write(insights_user_prompt)
-        # print("Full prompt written to generated_prompt_debug.md")
         print("--- End of Prompt Preview ---\n")
 
         print("\n--- Extracted JSON Schema Definition from Prompt ---")
@@ -729,14 +790,55 @@ def main():
             INSIGHTS_TEMPERATURE,
         )
 
-        print("\n--- LLM Response ---")
-        # Use the robust extract_json_block for the LLM's actual response
+        print("\n--- LLM Response (Sequential IDs) ---")
         extracted_llm_json_str = extract_json_block(llm_response_str)
+
         if extracted_llm_json_str:
             try:
                 parsed_llm_json = json.loads(extracted_llm_json_str)
+                print("Parsed LLM JSON with sequential IDs:")
                 pretty_llm_json = json.dumps(parsed_llm_json, indent=2)
                 print(pretty_llm_json)
+
+                # Convert sequential IDs to original DB IDs
+                if "tasks" in parsed_llm_json and isinstance(
+                    parsed_llm_json["tasks"], list
+                ):
+                    for task in parsed_llm_json["tasks"]:
+                        if isinstance(task, dict) and "ids" in task:
+                            # Handle different types of ID field (string or list)
+                            if isinstance(task["ids"], str):
+                                # Parse string format "[1, 5-9, 12]" to list
+                                try:
+                                    id_str = task["ids"].strip("[]")
+                                    if not id_str:
+                                        continue
+                                    sequential_ids = []
+                                    for part in id_str.split(","):
+                                        part = part.strip()
+                                        if "-" in part:
+                                            sequential_ids.append(
+                                                part
+                                            )  # Keep range format as string
+                                        else:
+                                            sequential_ids.append(int(part))
+                                    # Convert sequential IDs to DB IDs and update task
+                                    task["ids"] = get_original_db_ids_for_task(
+                                        sequential_ids, seq_to_db_ids_map
+                                    )
+                                except ValueError as e:
+                                    print(f"Error parsing task ID string: {e}")
+                            elif isinstance(task["ids"], list):
+                                # Direct list format handling
+                                task["ids"] = get_original_db_ids_for_task(
+                                    task["ids"], seq_to_db_ids_map
+                                )
+
+                    print("\n--- LLM Response (With Original DB IDs) ---")
+                    print(json.dumps(parsed_llm_json, indent=2))
+                else:
+                    print("No 'tasks' field found in LLM response or not a list.")
+
             except json.JSONDecodeError as e:
                 print(f"LLM response content was not valid JSON after extraction: {e}")
                 print("Extracted content was:\n", extracted_llm_json_str)
