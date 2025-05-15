@@ -55,18 +55,25 @@ def extract_json(text: str, tag: str) -> str:
     """
     Extracts the value of a given JSON tag from LLM-output text, handling cases where the JSON
     block may be truncated by maximum length (interrupted output).
-    - Supports optional ```json``` fences.
-    - Prioritizes complete fenced JSON, then strips incomplete fences.
-    - Uses regex to capture complete or truncated string values, then balances braces if needed.
+    - Uses extract_json_block to extract the JSON object first
+    - Then attempts to extract the specific tag value
+    - Falls back to regex-based extraction for partial matches
     - Returns the extracted value or an empty string.
     """
-    # 0. Extract JSON block from complete fences if present
-    fence_full = re.search(r"```json\s+(\{.*?\})\s*```", text, re.DOTALL)
-    if fence_full:
-        raw = fence_full.group(1)
-    else:
-        fence_open = re.search(r"```json\s*(\{.*)", text, re.DOTALL)
-        raw = fence_open.group(1) if fence_open else text
+    # First try to extract a proper JSON object using extract_json_block
+    json_block = extract_json_block(text)
+
+    # If we got a valid JSON block, try parsing it directly
+    if json_block is not None:
+        try:
+            data = json.loads(json_block)
+            val = data.get(tag, "")
+            return val if isinstance(val, str) else json.dumps(val)
+        except json.JSONDecodeError:
+            pass
+
+    # Fall back to regex extraction (works on both the JSON block or original text)
+    raw = json_block if json_block is not None else text
 
     # 1. Complete or truncated string patterns
     m_full = re.search(rf'"{tag}"\s*:\s*"((?:\\.|[^"])*)"', raw)
@@ -81,38 +88,63 @@ def extract_json(text: str, tag: str) -> str:
     if m_nonstr:
         return m_nonstr.group(1)
 
-    # 3. Fallback: JSON load with brace balancing
-    start = raw.find("{")
-    if start == -1:
-        return ""
+    return ""
+
+
+def extract_json_block(text: str) -> str | None:
+    """
+    Extracts the first JSON block from a given text.
+    - Prioritizes ```json fenced blocks.
+    - Falls back to finding JSON objects starting with '{'.
+    - Handles potentially truncated JSON by balancing braces.
+    - Returns the extracted JSON string or None if not found.
+    """
+    # Prioritize ```json fenced blocks
+    fence_match = re.search(r"```json\s*(\{.*?\}|\[.*?\])\s*```", text, re.DOTALL)
+    if fence_match:
+        return fence_match.group(1)
+
+    # Fallback: try to find a JSON object starting from the first '{'
+    obj_match = re.search(r"^\s*(\{.*)", text, re.DOTALL)
+    if not obj_match:
+        return None
+
+    raw_json_text = obj_match.group(1)
+    # Attempt to balance braces for a potentially truncated object
     depth = 0
-    in_str = False
-    esc = False
-    end_idx = None
-    for i in range(start, len(raw)):
-        ch = raw[i]
-        if esc:
-            esc = False
-        elif ch == "\\":
-            esc = True
-        elif ch == '"':
-            in_str = not in_str
-        elif not in_str:
-            if ch == "{":
+    in_string = False
+    escape_char = False
+    end_index = -1
+    start_index = -1
+
+    for i, char in enumerate(raw_json_text):
+        if start_index == -1 and char == "{":
+            start_index = i  # Mark the actual start of the JSON object
+
+        if start_index == -1:  # Skip characters before the first '{'
+            continue
+
+        if escape_char:
+            escape_char = False
+        elif char == "\\":
+            escape_char = True
+        elif char == '"':
+            in_string = not in_string
+        elif not in_string:
+            if char == "{":
                 depth += 1
-            elif ch == "}" and depth > 0:
+            elif char == "}":
                 depth -= 1
                 if depth == 0:
-                    end_idx = i
+                    end_index = i + 1
                     break
-    snippet = raw[start : end_idx + 1] if end_idx is not None else raw[start:]
-    if end_idx is None:
-        if in_str:
-            snippet += '"'
-        snippet += "}" * depth
-    try:
-        data = json.loads(snippet)
-        val = data.get(tag, "")
-        return val if isinstance(val, str) else json.dumps(val)
-    except json.JSONDecodeError:
-        return ""
+
+    if start_index != -1 and end_index != -1:
+        return raw_json_text[start_index:end_index]
+    elif start_index != -1:  # Potentially truncated
+        balanced_text = raw_json_text[start_index:]
+        if depth > 0:
+            balanced_text += "}" * depth
+        return balanced_text
+
+    return None
