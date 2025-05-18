@@ -84,7 +84,7 @@ INSIGHTS_LLM_SCHEMA_DEFINITION: Dict[str, Dict[str, Any]] = {
         "type": "list",
         "schema": ["<EMOJI> Activity"],
         "exmple": ["🔐 OAuth2 Flow Debugging", "📚 Quantum Mechanics Problem Set"],
-        "comment": "// 1-3 labels highlighting today's key activities. Use emoji-prefixed and specific labels. Avoid vague terms like 'work' or 'study'.",
+        "comment": "// 1-3 labels highlighting today's key activities. Use **emoji-prefixed** and **specific** labels, each 1-5 words. Avoid vague terms like 'work' or 'study'.",
     },
     "pattern": {
         "type": "str",
@@ -514,7 +514,7 @@ def format_llm_prompt(
     prompt_parts: List[str] = [
         "# My Clipboard Activity Analysis",
         f"Below is a log of my clipboard activities from {start_time_str_local} ({local_timezone_name}). Please analyze these entries to identify patterns, tasks, and provide insights.",
-        "\nWhen identifying tasks, synthesize information from both the 'Content By Type' section (summarized/typed entries) and the 'Uncategorized Content' section (raw snippets in Activity Blocks). Use sequential IDs to link tasks to entries.\n",
+        "\nWhen identifying tasks, synthesize information from both the 'Content By Type' section (summarized/typed entries) and the 'Uncategorized Content' section (**raw** snippets in Activity Blocks). Use sequential IDs to link tasks to entries.\n",
     ]
 
     if prompt_typed_entries:
@@ -531,7 +531,7 @@ def format_llm_prompt(
 
     if prompt_untyped_blocks:
         prompt_parts.append(
-            "\n## Uncategorized Content (Grouped by Activity Proximity)\n"
+            "\n## Uncategorized **Raw** Clipboard Content (Grouped by Activity Proximity)\n"
         )
         for block_data in prompt_untyped_blocks:
             prompt_parts.append(
