@@ -12,6 +12,7 @@ class EnvVars(BaseModel):
     MAX_SUMMARY_THREADS: int | None = Field(default=None, ge=1)
     SUMMARY_MAX_TOKENS: int | None = Field(default=None, gt=0)
     SUMMARY_TEMPERATURE: float | None = Field(default=None, ge=0.0, le=1.0)
+    SIMILARITY_THRESHOLD: int | None = Field(default=None, ge=50, le=100)
 
     OPENAI_API_KEY: str  # Required
     OPENAI_API_BASE_URL: str | None = None

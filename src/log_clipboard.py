@@ -20,24 +20,11 @@ def log_to_db(text: str, timestamp: str) -> None:
     Insert a clipboard entry into the DB with a given UTC timestamp.
     """
     conn = sqlite3.connect(str(db_file))
-    c = conn.cursor()
 
-    # Create table if it doesn't exist
-    c.execute(
-        """
-        CREATE TABLE IF NOT EXISTS clipboard (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            content TEXT NOT NULL,
-            summary TEXT,
-            type TEXT,
-            "group" INTEGER CHECK ("group" > 0)
-        )
-        """
-    )
+    cursor = conn.cursor()
 
     # Insert the new entry
-    c.execute(
+    cursor.execute(
         "INSERT INTO clipboard (timestamp, content) VALUES (?, ?)", (timestamp, text)
     )
 
