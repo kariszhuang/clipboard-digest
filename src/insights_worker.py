@@ -6,6 +6,7 @@ import re
 from collections import defaultdict
 from openai import OpenAI
 from typing import List, Tuple, Dict, Any, Union
+from tzlocal import get_localzone_name
 from config.env_validate import validate_env
 import numpy as np
 from dotenv import load_dotenv
@@ -16,9 +17,11 @@ from src.utils.text_processing import extract_json_block
 validate_env()
 load_dotenv(override=True)
 
-# Core Configuration
+try:
+    LOCAL_TIMEZONE_STR: str = os.getenv("LOCAL_TIMEZONE", get_localzone_name())
+except Exception:
+    LOCAL_TIMEZONE_STR: str = os.getenv("LOCAL_TIMEZONE", "America/Chicago")
 
-LOCAL_TIMEZONE_STR: str = os.getenv("LOCAL_TIMEZONE", "America/Chicago")
 DB_PATH: str = os.getenv("DB_PATH", "data/clipboard.db")
 HOURS_TO_ANALYZE: int = int(os.getenv("HOURS_TO_ANALYZE", "24"))
 

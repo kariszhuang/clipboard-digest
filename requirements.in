@@ -1,7 +1,8 @@
 numpy
 openai
-rapidfuzz
 pydantic
 pyperclip
 python-dotenv
 pytz
+rapidfuzz
+tzlocal

@@ -53,13 +53,13 @@ SUMMARY_TEMPERATURE: float = float(os.getenv("SUMMARY_TEMPERATURE", "0.1"))
 SUMMARY_MAX_TRIES: int = int(os.getenv("SUMMARY_MAX_TRIES", "2"))
 
 # Initialize OpenAI client
+client: OpenAI | None = None
 try:
     client = OpenAI(api_key=OPENAI_API_KEY, base_url=OPENAI_API_BASE_URL)
 except Exception as e:
     print(
         f"Error initializing OpenAI client: {e}. Please check your API key and base URL."
     )
-    client = None
 
 
 def init_db(conn: sqlite3.Connection):
