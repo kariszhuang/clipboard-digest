@@ -1,5 +1,6 @@
-openai
 numpy
+openai
+rapidfuzz
 pydantic
 pyperclip
 python-dotenv
