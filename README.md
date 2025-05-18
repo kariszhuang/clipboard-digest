@@ -4,10 +4,12 @@
 
 ## Features
 
-- Monitors your clipboard
-- Stores clipboard entries in SQLite
-- Creates daily summaries
-- Configurable via `.env` file
+- **Smart Clipboard Monitoring**: Continuously tracks what you copy with efficient change detection
+- **AI-Powered Summaries**: Automatically generates concise summaries of lengthy clipboard content
+- **Intelligent Content Grouping**: Groups similar content to avoid duplicate summarization and save API costs
+- **Daily Insights**: Creates comprehensive daily reports of your clipboard activity
+- **Flexible Configuration**: Easily configurable through `.env` file with sensible defaults
+- **Privacy-Focused**: All data remains local in a SQLite database. Supports local LLM (See [`.env.local_llm`](/.env.local_llm))
 
 ## TODO
 
