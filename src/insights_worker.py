@@ -17,7 +17,6 @@ validate_env()
 load_dotenv(override=True)
 
 # Core Configuration
-# TODO: Add new constants to .env.example file
 
 LOCAL_TIMEZONE_STR: str = os.getenv("LOCAL_TIMEZONE", "America/Chicago")
 DB_PATH: str = os.getenv("DB_PATH", "data/clipboard.db")
@@ -61,8 +60,8 @@ INSIGHTS_LLM_SCHEMA_DEFINITION: Dict[str, Dict[str, Any]] = {
         "type": "list",
         "schema": [
             """{
-    "name": "Task name",  // Be specific and observative about key activities
-    "description": "Detailed description of what was done and why it matters",
+    "name": "Task name",  // Be specific and observative about key activities that appear in different entries
+    "description": "Detailed description of what was done.",
     "ids": "1, 5-9, 12"  // Use comma-separated values or hyphenated ranges (e.g., '5-9'); must match recorded entries precisely
 }"""
         ],
@@ -80,12 +79,9 @@ INSIGHTS_LLM_SCHEMA_DEFINITION: Dict[str, Dict[str, Any]] = {
     },
     "keywords": {
         "type": "list",
-        "schema": [
-            '"💻 Programming"',
-            '"📝 Notes"',
-            '"🔍 Research"',
-        ],
-        "comment": "// Up to 3 total. Use emoji-prefixed, high-signal labels summarizing your day.",
+        "schema": ["<EMOJI> Activity"],
+        "exmple": ["🔐 OAuth2 Flow Debugging", "📚 Quantum Mechanics Problem Set"],
+        "comment": "// 1-3 labels highlighting today's key activities. Use emoji-prefixed and specific labels. Avoid vague terms like 'work' or 'study'.",
     },
     "pattern": {
         "type": "str",
@@ -513,7 +509,7 @@ def format_llm_prompt(
     - Complete formatted prompt string ready to send to the LLM
     """
     prompt_parts: List[str] = [
-        f"# My Clipboard Activity Analysis",
+        "# My Clipboard Activity Analysis",
         f"Below is a log of my clipboard activities from {start_time_str_local} ({local_timezone_name}). Please analyze these entries to identify patterns, tasks, and provide insights.",
         "\nWhen identifying tasks, synthesize information from both the 'Content By Type' section (summarized/typed entries) and the 'Uncategorized Content' section (raw snippets in Activity Blocks). Use sequential IDs to link tasks to entries.\n",
     ]
@@ -551,7 +547,9 @@ def format_llm_prompt(
         schema_examples = data[
             "schema"
         ]  # This is now a list for "list" type, or a string for "str" type
-        comment = data.get("comment", "")
+        comment: str = data.get("comment", "")
+        example: str = data.get("example", "")
+        print(type(example))
 
         current_field_def_lines = []
         if field_type == "list":
@@ -567,7 +565,7 @@ def format_llm_prompt(
                     indented_example_item
                     + ("," if k < len(schema_examples) - 1 else "")
                 )
-            current_field_def_lines.append(f"  ]")
+            current_field_def_lines.append("  ]")
         else:  # str
             # schema_examples is a single string for type "str"
             current_field_def_lines.append(f'  "{field_name}": "{schema_examples}"')
@@ -575,6 +573,10 @@ def format_llm_prompt(
         # Add comment to the last line of the current field definition
         if comment:
             current_field_def_lines[-1] += f" {comment}"
+
+        # Add example if provided
+        if example:
+            current_field_def_lines.append(f"  // Example: {example}")
 
         field_defs.append("\n".join(current_field_def_lines))
 
@@ -769,7 +771,7 @@ def main():
             try:
                 parsed_schema_dict = json.loads(schema_block_in_prompt)
                 print(json.dumps(parsed_schema_dict, indent=2))
-            except json.JSONDecodeError as e:
+            except json.JSONDecodeError:
                 print("Extracted schema block was:\n", schema_block_in_prompt)
         else:
             print(

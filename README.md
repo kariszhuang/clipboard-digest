@@ -13,7 +13,7 @@
 
 - [x] Summary worker (LLM)
 - [x] Group entries with time proximity
-- [ ] Insights worker (LLM)
+- [x] Insights worker (LLM)
 - [ ] Include cool statistics for daily insights
 - [ ] Table for daily report
 - [ ] Build frontend
